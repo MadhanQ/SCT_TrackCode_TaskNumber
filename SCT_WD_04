@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>a-DO — Lightweight To‑Do</title>
+  <style>
+    :root{
+      --bg:#f7fafc; --card:#ffffff; --muted:#6b7280; --accent:#0ea5a4; --danger:#ef4444;
+      --maxw:1000px; font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#fff);padding:24px;display:flex;align-items:flex-start;justify-content:center}
+    .app{width:100%;max-width:var(--maxw)}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    h1{margin:0;font-size:20px}
+    .row{display:flex;gap:12px}
+
+    .layout{display:grid;grid-template-columns:260px 1fr;gap:16px}
+    .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+
+    .lists{display:flex;flex-direction:column;gap:8px}
+    .list-item{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:8px;cursor:pointer}
+    .list-item.active{background:#f1f5f9}
+    .small{font-size:13px;color:var(--muted)}
+
+    form.add{display:grid;grid-template-columns:1fr 160px 190px;gap:8px;align-items:end}
+    input,select,textarea{width:100%;padding:8px;border:1px solid #e6eef3;border-radius:8px;font-size:14px}
+    textarea{resize:vertical}
+    button{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+    .btn-ghost{background:transparent;color:var(--muted);border:1px solid #eef2f4}
+
+    .tasks{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+    .task{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:10px;border:1px solid #f0f4f7}
+    .task .meta{font-size:12px;color:var(--muted)}
+    .task.completed .title{text-decoration:line-through;color:#9aa3a8}
+
+    .controls{display:flex;gap:6px;align-items:center}
+    .pill{font-size:12px;padding:6px 8px;border-radius:999px;border:1px solid #eef2f4}
+
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.35);display:flex;align-items:center;justify-content:center}
+    .modal{background:var(--card);padding:14px;border-radius:12px;width:560px;max-width:calc(100% - 40px)}
+
+    footer{margin-top:14px;text-align:center;color:var(--muted);font-size:13px}
+
+    @media (max-width:820px){.layout{grid-template-columns:1fr}.card{padding:10px} form.add{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>To‑Do app</h1>
+      <div class="small">Persistent in your browser (localStorage)</div>
+    </header>
+
+    <div class="layout">
+      <aside class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <strong>Lists</strong>
+          <button id="newListBtn" class="btn-ghost">+ New</button>
+        </div>
+        <div class="lists" id="lists"></div>
+        <div style="margin-top:10px" class="small">Tip: Create lists to organize tasks (Work, Personal, Groceries)</div>
+      </aside>
+
+      <main class="card">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
+          <div>
+            <h2 id="listTitle">Inbox</h2>
+            <div class="small">Add, edit, set date/time, mark complete</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="search" placeholder="Search tasks" style="padding:8px;border-radius:8px;border:1px solid #e6eef3" />
+            <div class="controls">
+              <button data-filter="all" class="pill">All</button>
+              <button data-filter="active" class="pill">Active</button>
+              <button data-filter="completed" class="pill">Done</button>
+            </div>
+          </div>
+        </div>
+
+        <form id="addForm" class="add" style="margin-top:12px">
+          <div>
+            <label class="small">Task</label>
+            <input id="taskTitle" placeholder="Task title" required />
+          </div>
+
+          <div>
+            <label class="small">Due (date & time)</label>
+            <input id="taskDue" type="datetime-local" />
+          </div>
+
+          <div>
+            <label class="small">List</label>
+            <select id="taskList"></select>
+          </div>
+
+          <div style="grid-column:1 / -1">
+            <label class="small">Notes (optional)</label>
+            <textarea id="taskNotes" rows="2" placeholder="Details, steps..."></textarea>
+          </div>
+
+          <div style="grid-column:1 / -1;display:flex;justify-content:flex-end">
+            <button type="submit">Add Task</button>
+          </div>
+        </form>
+
+        <div id="tasksContainer" class="tasks"></div>
+
+      </main>
+    </div>
+
+    <footer>Saved locally — use the same browser & device to keep data.</footer>
+  </div>
+
+  <template id="modalTpl">
+    <div class="modal-backdrop">
+      <div class="modal">
+        <h3>Edit task</h3>
+        <div style="margin-top:8px;display:grid;gap:8px">
+          <input id="mTitle" />
+          <input id="mDue" type="datetime-local" />
+          <select id="mList"></select>
+          <textarea id="mNotes" rows="3"></textarea>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button id="mCancel" class="btn-ghost">Cancel</button>
+            <button id="mDelete" style="background:var(--danger);color:#fff;border-radius:8px;padding:8px;border:0">Delete</button>
+            <button id="mSave">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    const STORAGE_KEY = 'aDO_plain_v1';
+
+    const defaultState = {
+      lists: [{ id: 'inbox', title: 'Inbox' }],
+      tasks: []
+    };
+
+    const el = id => document.getElementById(id);
+
+    let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || defaultState;
+    let activeListId = state.lists[0].id;
+    let filter = 'all';
+    let searchQ = '';
+
+    const uid = () => Math.random().toString(36).slice(2,9);
+    const save = ()=> localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const formatDue = d => {
+      if(!d) return '';
+      const dt = new Date(d);
+      return dt.toLocaleString();
+    }
+
+    function renderLists(){
+      const wrap = el('lists'); wrap.innerHTML='';
+      state.lists.forEach(l => {
+        const div = document.createElement('div');
+        div.className = 'list-item ' + (l.id === activeListId ? 'active':'' );
+        div.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><strong>${escapeHtml(l.title)}</strong><div class="small">${state.tasks.filter(t=>t.listId===l.id).length} tasks</div></div>
+          <div style="display:flex;gap:6px">
+            ${l.id!=='inbox'? `<button data-delete-list="${l.id}" class="btn-ghost">Del</button>` : ''}
+            <button data-rename="${l.id}" class="btn-ghost">Rename</button>
+          </div>`;
+        div.onclick = (ev)=>{
+          if(ev.target.tagName==='BUTTON') return;
+          activeListId = l.id; render();
+        }
+        wrap.appendChild(div);
+      });
+
+      wrap.querySelectorAll('[data-delete-list]').forEach(b => b.addEventListener('click', (e)=>{
+        e.stopPropagation(); const id = b.getAttribute('data-delete-list'); if(!confirm('Delete list and its tasks?')) return; deleteList(id);
+      }))
+      wrap.querySelectorAll('[data-rename]').forEach(b=> b.addEventListener('click', (e)=>{
+        e.stopPropagation(); const id = b.getAttribute('data-rename'); const newT = prompt('New name:'); if(newT) renameList(id,newT);
+      }))
+    }
+
+    function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+    function renderListSelects(){
+      const sel = el('taskList'); sel.innerHTML='';
+      const msel = document.createElement('select');
+      state.lists.forEach(l=>{
+        const opt = document.createElement('option'); opt.value = l.id; opt.textContent = l.title; sel.appendChild(opt);
+      })
+
+      const mSel = document.querySelector('#modalTpl').content.querySelector('#mList');
+    }
+
+    function renderTasks(){
+      el('listTitle').textContent = state.lists.find(l=>l.id===activeListId)?.title || '—';
+      const container = el('tasksContainer'); container.innerHTML='';
+
+      let tasks = state.tasks.filter(t=> t.listId===activeListId);
+      if(filter==='active') tasks = tasks.filter(t=>!t.completed);
+      if(filter==='completed') tasks = tasks.filter(t=>t.completed);
+      if(searchQ) tasks = tasks.filter(t=> (t.title+' '+(t.notes||'')).toLowerCase().includes(searchQ.toLowerCase()));
+
+      tasks.sort((a,b)=>{
+        if(a.due && b.due) return new Date(a.due)-new Date(b.due);
+        if(a.due) return -1; if(b.due) return 1; return 0;
+      })
+
+      if(tasks.length===0){ container.innerHTML = '<div class="small" style="padding:16px;text-align:center">No tasks — add one above</div>'; return }
+
+      tasks.forEach(t=>{
+        const d = document.createElement('div'); d.className='task ' + (t.completed?'completed':'');
+        d.innerHTML = `<div style="display:flex;gap:10px;align-items:flex-start">
+          <input type="checkbox" ${t.completed? 'checked':''} data-toggle="${t.id}" />
+          <div>
+            <div class="title" style="font-weight:600">${escapeHtml(t.title)}</div>
+            <div class="meta">${t.notes? escapeHtml(t.notes)+' • ':''}${t.due? formatDue(t.due): 'No due date'}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${t.due && new Date(t.due) < new Date() ? '<span style="color:var(--danger);font-size:12px">Overdue</span>':''}
+          <button data-edit="${t.id}" class="btn-ghost">Edit</button>
+          <button data-delete="${t.id}" class="btn-ghost">Delete</button>
+        </div>`;
+
+        container.appendChild(d);
+      })
+
+      container.querySelectorAll('[data-toggle]').forEach(cb=> cb.addEventListener('change', e=>{
+        const id = cb.getAttribute('data-toggle'); toggleComplete(id);
+      }))
+      container.querySelectorAll('[data-edit]').forEach(b=> b.addEventListener('click', ()=> openEditModal(b.getAttribute('data-edit'))))
+      container.querySelectorAll('[data-delete]').forEach(b=> b.addEventListener('click', ()=>{ if(confirm('Delete task?')) deleteTask(b.getAttribute('data-delete')) }))
+    }
+
+    function addList(title){ state.lists.push({id:uid(), title: title}); save(); render(); }
+    function deleteList(id){ state.lists = state.lists.filter(l=>l.id!==id); state.tasks = state.tasks.filter(t=>t.listId!==id); if(activeListId===id) activeListId = state.lists[0].id; save(); render(); }
+    function renameList(id,title){ const l = state.lists.find(x=>x.id===id); if(l) l.title = title; save(); render(); }
+
+    function addTask({title,notes,due,listId}){
+      state.tasks.unshift({id:uid(), title, notes, due: due||null, completed:false, createdAt:new Date().toISOString(), listId}); save(); render();
+    }
+    function updateTask(id, patch){ const t = state.tasks.find(x=>x.id===id); if(!t) return; Object.assign(t, patch); save(); render(); }
+    function deleteTask(id){ state.tasks = state.tasks.filter(t=>t.id!==id); save(); render(); }
+    function toggleComplete(id){ const t = state.tasks.find(x=>x.id===id); if(!t) return; t.completed = !t.completed; save(); render(); }
+
+    function openEditModal(taskId){
+      const task = state.tasks.find(t=>t.id===taskId); if(!task) return;
+      const tpl = document.getElementById('modalTpl'); const node = tpl.content.cloneNode(true);
+      node.querySelector('#mTitle').value = task.title;
+      node.querySelector('#mDue').value = task.due ? toInputDatetime(task.due) : '';
+      node.querySelector('#mNotes').value = task.notes || '';
+      const mList = node.querySelector('#mList'); mList.innerHTML = '';
+      state.lists.forEach(l=>{ const o = document.createElement('option'); o.value=l.id; o.textContent=l.title; if(l.id===task.listId) o.selected=true; mList.appendChild(o) })
+
+      node.querySelector('#mCancel').addEventListener('click', ()=> document.body.removeChild(nodeRoot));
+      node.querySelector('#mSave').addEventListener('click', ()=>{
+        const newT = { title: node.querySelector('#mTitle').value.trim()||task.title, notes: node.querySelector('#mNotes').value, due: node.querySelector('#mDue').value||null, listId: node.querySelector('#mList').value };
+        updateTask(task.id, newT);
+        document.body.removeChild(nodeRoot);
+      });
+      node.querySelector('#mDelete').addEventListener('click', ()=>{ if(confirm('Delete this task?')){ deleteTask(task.id); if(nodeRoot && nodeRoot.parentNode) document.body.removeChild(nodeRoot); }});
+
+      const nodeRoot = document.createElement('div'); nodeRoot.appendChild(node);
+      document.body.appendChild(nodeRoot);
+    }
+
+    function toInputDatetime(iso){ try{ const d=new Date(iso); const yyyy=d.getFullYear(); const mm=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); const hh=String(d.getHours()).padStart(2,'0'); const min=String(d.getMinutes()).padStart(2,'0'); return `${yyyy}-${mm}-${dd}T${hh}:${min}` }catch(e){return iso}}
+
+    function render(){ renderLists(); renderListSelectOptions(); renderTasks(); }
+
+    function renderListSelectOptions(){ const sel = el('taskList'); sel.innerHTML=''; state.lists.forEach(l=>{ const o=document.createElement('option'); o.value=l.id; o.textContent=l.title; if(l.id===activeListId) o.selected=true; sel.appendChild(o) }); }
+
+    document.getElementById('newListBtn').addEventListener('click', ()=>{ const name = prompt('New list name:'); if(name) addList(name) });
+
+    document.getElementById('addForm').addEventListener('submit', (e)=>{
+      e.preventDefault(); const title = el('taskTitle').value.trim(); if(!title) return alert('Enter a task title'); const due = el('taskDue').value || null; const listId = el('taskList').value; const notes = el('taskNotes').value.trim(); addTask({title,notes,due,listId}); 
+      el('taskTitle').value=''; el('taskNotes').value=''; el('taskDue').value='';
+    });
+
+    document.querySelectorAll('[data-filter]').forEach(b=> b.addEventListener('click', ()=>{ filter = b.getAttribute('data-filter'); render(); }))
+
+    el('search').addEventListener('input', (e)=>{ searchQ = e.target.value; render(); })
+
+    render();
+
+    window._aDO = {state, save, render};
+  </script>
+</body>
+</html>
