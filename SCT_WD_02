@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stopwatch</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#0b1220;
+      --muted:#98a0b3;
+      --accent:#6ee7b7;
+      --accent-2:#60a5fa;
+      --glass: rgba(255,255,255,0.03);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071024 0%, #07162b 100%);color:#e6eef8}
+    .wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px}
+
+    h1 {
+      font-size: 2.5rem;
+      color: var(--accent);
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .card{
+      width:100%;max-width:760px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:16px;padding:28px;box-shadow:0 8px 30px rgba(2,6,23,0.6);backdrop-filter: blur(6px);
+      display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;
+    }
+
+    .display{
+      background:var(--card);padding:28px;border-radius:12px;display:flex;flex-direction:column;gap:18px;align-items:flex-start;
+    }
+    .time{
+      font-weight:700;font-size:48px;letter-spacing:0.6px;font-variant-numeric:tabular-nums;color:var(--accent);
+    }
+    .subtime{color:var(--muted);font-size:14px}
+
+    .controls{display:flex;gap:12px;flex-wrap:wrap}
+    button{
+      background:var(--glass);border:1px solid rgba(255,255,255,0.04);padding:10px 14px;border-radius:10px;color:inherit;font-weight:600;cursor:pointer;
+      transition:transform .08s ease, box-shadow .12s ease;
+    }
+    button:active{transform:translateY(1px)}
+    .btn-start{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#021124;border:none;box-shadow:0 6px 18px rgba(96,165,250,0.12)}
+    .btn-stop{background:#f87171;color:#2b0505}
+    .btn-reset{background:transparent}
+
+    .side{
+      display:flex;flex-direction:column;gap:14px;
+    }
+    .laps{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;max-height:420px;overflow:auto}
+    .lap{display:flex;justify-content:space-between;padding:8px 10px;border-radius:8px;margin-bottom:6px;background:linear-gradient(90deg, rgba(255,255,255,0.01), transparent)}
+    .small{font-size:13px;color:var(--muted)}
+
+    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;color:var(--muted);font-size:13px}
+
+    @media (max-width:820px){
+      .card{grid-template-columns:1fr;}
+      .time{font-size:40px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Stopwatch</h1>
+    <div class="card" role="application" aria-label="Stopwatch">
+      <div class="display">
+        <div>
+          <div class="time" id="time">00:00:00.000</div>
+          <div class="subtime">Use <strong>Space</strong> to Start/Stop, <strong>L</strong> to Lap, <strong>R</strong> to Reset</div>
+        </div>
+
+        <div class="controls" id="controls">
+          <button id="startBtn" class="btn-start">Start</button>
+          <button id="stopBtn" class="btn-stop" style="display:none">Stop</button>
+          <button id="lapBtn">Lap</button>
+          <button id="resetBtn" class="btn-reset">Reset</button>
+          <button id="downloadBtn">Download Laps</button>
+        </div>
+
+        <div class="footer">
+          <div class="small" id="status">Idle</div>
+          <div class="small">Precision: milliseconds</div>
+        </div>
+      </div>
+
+      <div class="side">
+        <div style="font-weight:700">Laps</div>
+        <div class="laps" id="laps" aria-live="polite" aria-atomic="true">
+          <!-- laps will appear here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const timeEl = document.getElementById('time');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const lapBtn = document.getElementById('lapBtn');
+    const lapsEl = document.getElementById('laps');
+    const statusEl = document.getElementById('status');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    let running = false;
+    let startTime = 0;
+    let elapsedBefore = 0;
+    let rafId = null;
+    let laps = [];
+
+    function format(ms){
+      const total = Math.floor(ms);
+      const hours = Math.floor(total / 3600000);
+      const mins = Math.floor((total % 3600000) / 60000);
+      const secs = Math.floor((total % 60000) / 1000);
+      const msecs = total % 1000;
+      return `${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}.${String(msecs).padStart(3,'0')}`;
+    }
+
+    function update(){
+      const now = performance.now();
+      const elapsed = elapsedBefore + (now - startTime);
+      timeEl.textContent = format(elapsed);
+      rafId = requestAnimationFrame(update);
+    }
+
+    function start(){
+      if(running) return;
+      running = true;
+      startTime = performance.now();
+      rafId = requestAnimationFrame(update);
+      startBtn.style.display = 'none';
+      stopBtn.style.display = '';
+      statusEl.textContent = 'Running';
+    }
+
+    function stop(){
+      if(!running) return;
+      running = false;
+      cancelAnimationFrame(rafId);
+      const now = performance.now();
+      elapsedBefore += (now - startTime);
+      startBtn.style.display = '';
+      stopBtn.style.display = 'none';
+      statusEl.textContent = 'Stopped';
+    }
+
+    function reset(){
+      running = false;
+      cancelAnimationFrame(rafId);
+      elapsedBefore = 0;
+      startTime = 0;
+      timeEl.textContent = '00:00:00.000';
+      laps = [];
+      renderLaps();
+      startBtn.style.display = '';
+      stopBtn.style.display = 'none';
+      statusEl.textContent = 'Idle';
+    }
+
+    function lap(){
+      const now = running ? (elapsedBefore + (performance.now() - startTime)) : elapsedBefore;
+      const lapTime = now;
+      const previousTotal = laps.length ? laps[laps.length-1].total : 0;
+      const split = lapTime - previousTotal;
+      const lapObj = {index: laps.length+1, total: lapTime, split};
+      laps.push(lapObj);
+      renderLaps();
+    }
+
+    function renderLaps(){
+      lapsEl.innerHTML = '';
+      if(laps.length === 0){
+        lapsEl.innerHTML = '<div class="small">No laps yet</div>';
+        return;
+      }
+      const items = [...laps].reverse();
+      for(const lap of items){
+        const el = document.createElement('div');
+        el.className = 'lap';
+        const left = document.createElement('div');
+        left.innerHTML = `<div style="font-weight:700">Lap ${lap.index}</div><div class="small">Split: ${format(lap.split)}</div>`;
+        const right = document.createElement('div');
+        right.innerHTML = `<div style="font-weight:700">${format(lap.total)}</div><div class="small">Total</div>`;
+        el.appendChild(left);
+        el.appendChild(right);
+        lapsEl.appendChild(el);
+      }
+    }
+
+    function downloadLaps(){
+      if(laps.length === 0) return alert('No laps to download');
+      let csv = 'Lap,Split (ms),Split,Total (ms),Total\n';
+      for(const lap of laps){
+        csv += `${lap.index},${Math.round(lap.split)},${format(lap.split)},${Math.round(lap.total)},${format(lap.total)}\n`;
+      }
+      const blob = new Blob([csv], {type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'laps.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    startBtn.addEventListener('click', start);
+    stopBtn.addEventListener('click', stop);
+    resetBtn.addEventListener('click', ()=>{
+      if(confirm('Reset stopwatch and clear laps?')) reset();
+    });
+    lapBtn.addEventListener('click', ()=>{
+      if(!running && elapsedBefore === 0) return;
+      lap();
+    });
+    downloadBtn.addEventListener('click', downloadLaps);
+
+    window.addEventListener('keydown', (e)=>{
+      if(e.code === 'Space'){
+        e.preventDefault();
+        running ? stop() : start();
+      } else if(e.key.toLowerCase() === 'l'){
+        if(!running && elapsedBefore === 0) return;
+        lap();
+      } else if(e.key.toLowerCase() === 'r'){
+        if(confirm('Reset stopwatch and clear laps?')) reset();
+      }
+    });
+
+    window.addEventListener('beforeunload', ()=>{
+      cancelAnimationFrame(rafId);
+    });
+
+    renderLaps();
+  </script>
+</body>
+</html>
