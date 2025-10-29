@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tic-Tac-Toe Pro</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: #121212;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    padding: 20px;
+    margin: 0;
+  }
+  h1 {
+    margin-bottom: 5px;
+    font-weight: 700;
+  }
+  #mode-select {
+    margin-bottom: 15px;
+  }
+  #mode-select label {
+    margin-right: 25px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #aaa;
+    transition: color 0.3s;
+  }
+  #mode-select input[type="radio"]:checked + span {
+    color: #4caf50;
+  }
+  #mode-select input[type="radio"] {
+    display: none;
+  }
+  #game {
+    display: grid;
+    grid-template-columns: repeat(3, 110px);
+    grid-template-rows: repeat(3, 110px);
+    gap: 12px;
+    margin-bottom: 20px;
+    user-select: none;
+  }
+  .cell {
+    background: #222;
+    border-radius: 14px;
+    font-size: 75px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 0 12px #000 inset;
+    transition: background 0.3s, transform 0.15s;
+    position: relative;
+    color: #eee;
+  }
+  .cell:hover:not(.taken):not(.disabled) {
+    background: #333;
+    transform: scale(1.08);
+  }
+  .cell.taken {
+    cursor: default;
+  }
+  .cell.win {
+    background: #4caf50 !important;
+    color: #fff;
+    box-shadow: 0 0 20px #4caf50, 0 0 25px #4caf50 inset;
+    transform: scale(1.15);
+  }
+  #status {
+    font-size: 28px;
+    font-weight: 700;
+    min-height: 42px;
+    margin-bottom: 10px;
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+  #scoreboard {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  #scoreboard div {
+    color: #bbb;
+  }
+  #scoreboard div span {
+    font-weight: 700;
+    color: #4caf50;
+    margin-left: 8px;
+  }
+  #reset {
+    padding: 12px 28px;
+    background: #555;
+    border: none;
+    border-radius: 14px;
+    color: #eee;
+    font-size: 20px;
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    transition: background 0.3s;
+  }
+  #reset:hover {
+    background: #77bb66;
+    color: #121212;
+  }
+  @media (max-width: 400px) {
+    #game {
+      grid-template-columns: repeat(3, 80px);
+      grid-template-rows: repeat(3, 80px);
+      gap: 8px;
+    }
+    .cell {
+      font-size: 55px;
+    }
+  }
+
+  /* Winning line animation */
+  #line {
+    position: absolute;
+    background: #4caf50;
+    border-radius: 8px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+</style>
+</head>
+<body>
+
+<h1>Tic-Tac-Toe Pro</h1>
+
+<div id="mode-select" role="radiogroup" aria-label="Select game mode">
+  <label>
+    <input type="radio" name="mode" value="1" checked />
+    <span>1 Player (vs AI)</span>
+  </label>
+  <label>
+    <input type="radio" name="mode" value="2" />
+    <span>2 Players</span>
+  </label>
+</div>
+
+<div id="scoreboard">
+  <div>Player X Wins: <span id="scoreX">0</span></div>
+  <div>Player O Wins: <span id="scoreO">0</span></div>
+  <div>Draws: <span id="scoreDraw">0</span></div>
+</div>
+
+<div id="game" aria-label="Tic Tac Toe board" role="grid" aria-readonly="true">
+  <div class="cell" data-index="0" role="gridcell" aria-label="Cell 1"></div>
+  <div class="cell" data-index="1" role="gridcell" aria-label="Cell 2"></div>
+  <div class="cell" data-index="2" role="gridcell" aria-label="Cell 3"></div>
+  <div class="cell" data-index="3" role="gridcell" aria-label="Cell 4"></div>
+  <div class="cell" data-index="4" role="gridcell" aria-label="Cell 5"></div>
+  <div class="cell" data-index="5" role="gridcell" aria-label="Cell 6"></div>
+  <div class="cell" data-index="6" role="gridcell" aria-label="Cell 7"></div>
+  <div class="cell" data-index="7" role="gridcell" aria-label="Cell 8"></div>
+  <div class="cell" data-index="8" role="gridcell" aria-label="Cell 9"></div>
+</div>
+
+<div id="status" aria-live="polite">Player X's turn</div>
+<button id="reset" aria-label="Restart game">Restart Game</button>
+
+<!-- Winning line for animation -->
+<div id="line"></div>
+
+<!-- Sound Effects -->
+<audio id="sound-click" src="https://cdn.jsdelivr.net/gh/freeCodeCamp/cdn/audio/Click.mp3" preload="auto"></audio>
+<audio id="sound-win" src="https://cdn.jsdelivr.net/gh/freeCodeCamp/cdn/audio/Win.mp3" preload="auto"></audio>
+<audio id="sound-draw" src="https://cdn.jsdelivr.net/gh/freeCodeCamp/cdn/audio/Draw.mp3" preload="auto"></audio>
+
+<script>
+  const cells = document.querySelectorAll('.cell');
+  const status = document.getElementById('status');
+  const resetBtn = document.getElementById('reset');
+  const modeRadios = document.querySelectorAll('input[name="mode"]');
+  const scoreXSpan = document.getElementById('scoreX');
+  const scoreOSpan = document.getElementById('scoreO');
+  const scoreDrawSpan = document.getElementById('scoreDraw');
+  const line = document.getElementById('line');
+  const soundClick = document.getElementById('sound-click');
+  const soundWin = document.getElementById('sound-win');
+  const soundDraw = document.getElementById('sound-draw');
+
+  let board = Array(9).fill(null);
+  let currentPlayer = 'X';
+  let gameActive = true;
+  let gameMode = '1'; // '1' for vs AI, '2' for two players
+
+  let scores = {
+    X: 0,
+    O: 0,
+    Draw: 0
+  };
+
+  // All winning combos + position for line drawing: [startIndex, endIndex, x, y, width, height, rotationDegrees]
+  const winningCombinations = [
+    { combo: [0,1,2], line: {x: 5, y: 55, w: 320, h: 8, r: 0} },   // Top row horizontal
+    { combo: [3,4,5], line: {x: 5, y: 172, w: 320, h: 8, r: 0} },  // Middle row horizontal
+    { combo: [6,7,8], line: {x: 5, y: 289, w: 320, h: 8, r: 0} },  // Bottom row horizontal
+    { combo: [0,3,6], line: {x: 55, y: 5, w: 8, h: 320, r: 0} },   // Left col vertical
+    { combo: [1,4,7], line: {x: 172, y: 5, w: 8, h: 320, r: 0} },  // Middle col vertical
+    { combo: [2,5,8], line: {x: 289, y: 5, w: 8, h: 320, r: 0} },  // Right col vertical
+    { combo: [0,4,8], line: {x: 25, y: 25, w: 8, h: 360, r: 45} }, // Diagonal \
+    { combo: [2,4,6], line: {x: 295, y: 25, w: 8, h: 360, r: -45} } // Diagonal /
+  ];
+
+  function checkWin(player) {
+    for (const win of winningCombinations) {
+      if (win.combo.every(index => board[index] === player)) {
+        return win;
+      }
+    }
+    return null;
+  }
+
+  function playSound(sound) {
+    sound.currentTime = 0;
+    sound.play();
+  }
+
+  function disableBoard(disable) {
+    cells.forEach(cell => {
+      if (!cell.classList.contains('taken')) {
+        if (disable) {
+          cell.classList.add('disabled');
+        } else {
+          cell.classList.remove('disabled');
+        }
+      }
+    });
+  }
+
+  function handleCellClick(e) {
+    const index = +e.target.getAttribute('data-index');
+    if (!gameActive || board[index] !== null) return;
+
+    makeMove(index, currentPlayer);
+    playSound(soundClick);
+
+    if (gameMode === '1' && gameActive) {
+      disableBoard(true);
+      // AI move after delay
+      setTimeout(() => {
+        const aiMove = getBestMove();
+        if (aiMove !== null) {
+          makeMove(aiMove, 'O');
+          playSound(soundClick);
+        }
+        disableBoard(false);
+      }, 600);
+    }
+  }
+
+  function makeMove(index, player) {
+    board[index] = player;
+    const cell = cells[index];
+    cell.textContent = player;
+    cell.classList.add('taken');
+
+    const winningCombo = checkWin(player);
+    if (winningCombo) {
+      gameActive = false;
+      status.textContent = `Player ${player} wins! 🎉`;
+      highlightWinningCells(winningCombo.combo);
+      playSound(soundWin);
+      updateScores(player);
+      return;
+    }
+
+    if (board.every(cell => cell !== null)) {
+      gameActive = false;
+      status.textContent = "It's a draw! 🤝";
+      playSound(soundDraw);
+      updateScores('Draw');
+      return;
+    }
+
+    currentPlayer = (player === 'X') ? 'O' : 'X';
+    status.textContent = `Player ${currentPlayer}'s turn`;
+  }
+
+  function highlightWinningCells(combo) {
+    combo.forEach(i => {
+      cells[i].classList.add('win');
+    });
+    showWinningLine(combo);
+  }
+
+  function showWinningLine(combo) {
+    const winData = winningCombinations.find(wc => JSON.stringify(wc.combo) === JSON.stringify(combo));
+    if (!winData) return;
+
+    line.style.opacity = '1';
+    line.style.width = winData.line.w + 'px';
+    line.style.height = winData.line.h + 'px';
+    line.style.transform = `translate(${winData.line.x}px, ${winData.line.y}px) rotate(${winData.line.r}deg)`;
+  }
+
+  function hideWinningLine() {
+    line.style.opacity = '0';
+  }
+
+  function updateScores(winner) {
+    if (winner === 'X' || winner === 'O') {
+      scores[winner]++;
+      if (winner === 'X') scoreXSpan.textContent = scores.X;
+      else scoreOSpan.textContent = scores.O;
+    } else {
+      scores.Draw++;
+      scoreDrawSpan.textContent = scores.Draw;
+    }
+  }
+
+  function resetGame() {
+    board.fill(null);
+    cells.forEach(cell => {
+      cell.textContent = '';
+      cell.classList.remove('taken', 'win', 'disabled');
+    });
+    currentPlayer = 'X';
+    gameActive = true;
+    status.textContent = `Player ${currentPlayer}'s turn`;
+    hideWinningLine();
+  }
+
+  function changeMode() {
+    gameMode = document.querySelector('input[name="mode"]:checked').value;
+    resetGame();
+  }
+
+  // Minimax AI implementation for unbeatable AI
+  function getBestMove() {
+    // If board empty, choose center or random corner for first move to speed things up
+    if (board.every(cell => cell === null)) {
+      const corners = [0, 2, 6, 8];
+      return 4; // Center best first move
+    }
+
+    function minimax(newBoard, player) {
+      const availSpots = newBoard
+        .map((val, idx) => val === null ? idx : null)
+        .filter(i => i !== null);
+
+      const opponent = (player === 'O') ? 'X' : 'O';
+
+      if (checkWinStatic(newBoard, 'X')) {
+        return { score: -10 };
+      } else if (checkWinStatic(newBoard, 'O')) {
+        return { score: 10 };
+      } else if (availSpots.length === 0) {
+        return { score: 0 };
+      }
+
+      const moves = [];
+
+      for (const spot of availSpots) {
+        const move = {};
+        move.index = spot;
+        newBoard[spot] = player;
+
+        const result = minimax(newBoard, opponent);
+        move.score = result.score;
+
+        newBoard[spot] = null;
+
+        if (player === 'O') {
+          // Maximize AI
+          moves.push(move);
+        } else {
+          // Minimize human
+          moves.push(move);
+        }
+      }
+
+      let bestMove;
+      if (player === 'O') {
+        let bestScore = -Infinity;
+        for (let i=0; i<moves.length; i++) {
+          if (moves[i].score > bestScore) {
+            bestScore = moves[i].score;
+            bestMove = moves[i];
+          }
+        }
+      } else {
+        let bestScore = Infinity;
+        for (let i=0; i<moves.length; i++) {
+          if (moves[i].score < bestScore) {
+            bestScore = moves[i].score;
+            bestMove = moves[i];
+          }
+        }
+      }
+      return bestMove;
+    }
+
+    function checkWinStatic(boardState, player) {
+      return winningCombinations.some(win => win.combo.every(i => boardState[i] === player));
+    }
+
+    const bestMove = minimax(board.slice(), 'O');
+    return bestMove.index !== undefined ? bestMove.index : null;
+  }
+
+  // Event Listeners
+  cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+  resetBtn.addEventListener('click', resetGame);
+  modeRadios.forEach(radio => radio.addEventListener('change', changeMode));
+
+  // Init scoreboard from zero
+  scoreXSpan.textContent = scores.X;
+  scoreOSpan.textContent = scores.O;
+  scoreDrawSpan.textContent = scores.Draw;
+
+</script>
+
+</body>
+</html>
