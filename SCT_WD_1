@@ -1,0 +1,326 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Responsive Landing — Interactive Nav & Full Features</title>
+  <meta name="description" content="Responsive landing page with advanced interactive navigation, animations, theme toggle, contact validation, modal signup, preloader and more." /> 
+<style>
+    :root{
+      --bg:#0f1724; --surface:#0b1220; --muted:#94a3b8; --accent:#06b6d4; --accent-2:#7c3aed; --glass: rgba(255,255,255,0.04);
+      --nav-h:72px; --nav-h-small:54px; --transition: 220ms;
+    }
+    [data-theme="light"]{ --bg:#f6fbff; --surface:#ffffff; --muted:#5b6b7a; --accent:#0ea5b7; --accent-2:#8b5cf6; --glass: rgba(2,6,23,0.03); color: #04263b }
+
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;background:var(--bg);color:var(--surface);-webkit-font-smoothing:antialiased}
+    a{color:inherit;text-decoration:none}
+
+    .preloader{position:fixed;inset:0;display:grid;place-items:center;background:linear-gradient(180deg, var(--bg), rgba(2,6,23,0.7));z-index:99999;transition:opacity 360ms ease}
+    .preloader.hidden{opacity:0;pointer-events:none}
+    .spinner{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:#021019;font-weight:800;transform:rotate(0);animation:spin 900ms linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .navbar{position:fixed;top:0;left:0;right:0;height:var(--nav-h);display:flex;align-items:center;justify-content:space-between;padding:12px 28px;z-index:9999;transition:all var(--transition) ease, height var(--transition);backdrop-filter: blur(8px);background:transparent}
+    .navbar.scrolled{background:linear-gradient(90deg, rgba(8,19,29,0.88), rgba(12,18,24,0.82));box-shadow: 0 8px 24px rgba(2,6,23,0.6);border-bottom:1px solid rgba(255,255,255,0.03)}
+    .navbar.small{height:var(--nav-h-small);padding:8px 20px}
+
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-weight:800;color:#021019}
+    .brand-name{font-weight:700;font-size:18px;color:var(--surface)}
+
+    .nav-menu{display:flex;gap:14px;align-items:center}
+    .nav-link{position:relative;padding:8px 12px;border-radius:8px;transition:all 180ms ease;color:var(--muted);font-weight:600}
+    .nav-link:hover{color:var(--accent);transform:translateY(-3px);background:var(--glass)}
+    .nav-link::after{content:'';position:absolute;left:12px;right:12px;height:2px;bottom:6px;background:transparent;transition:all 200ms ease;border-radius:2px}
+    .nav-link:hover::after{background:linear-gradient(90deg,var(--accent),var(--accent-2));transform:scaleX(1)}
+    .nav-link.current{color:var(--surface);box-shadow:0 6px 18px rgba(7,21,28,0.45);background:linear-gradient(90deg, rgba(6,182,212,0.06), rgba(124,58,237,0.04))}
+
+    .cta{padding:9px 14px;border-radius:10px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#021019;font-weight:700}
+    .cta:hover{filter:brightness(1.03);transform:translateY(-2px)}
+
+    .controls{display:flex;gap:10px;align-items:center}
+    .theme-toggle{border-radius:8px;padding:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.03);display:flex;align-items:center;gap:8px}
+
+    .hamburger{display:none;cursor:pointer;width:44px;height:44px;border-radius:8px;align-items:center;justify-content:center}
+    .hamburger .bar{width:20px;height:2px;background:#cfe9ee;margin:3px 0;transition:all 220ms ease}
+    .mobile-menu{display:none;position:fixed;inset:var(--nav-h) 12px 12px 12px;background:linear-gradient(180deg, rgba(5,10,15,0.96), rgba(8,14,18,0.98));backdrop-filter: blur(10px);border-radius:12px;padding:18px;flex-direction:column;gap:12px;z-index:9998}
+
+    .hero{min-height:92vh;display:grid;place-items:center;padding:110px 18px 48px}
+    .container{max-width:1100px;width:100%;margin:0 auto;padding:0 6px}
+    .hero-grid{display:grid;grid-template-columns:1fr 420px;gap:36px;align-items:center}
+    .headline{font-size:clamp(28px,5vw,48px);line-height:1.02;margin-bottom:12px;color:var(--surface)}
+    .sub{color:var(--muted);margin-bottom:18px}
+
+    .typed{display:inline-block;color:var(--accent);font-weight:800;margin-left:6px}
+
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:18px;border-radius:12px}
+
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:28px}
+    .feature{padding:18px;border-radius:10px;background:rgba(255,255,255,0.02);opacity:0;transform:translateY(18px);transition:all 480ms cubic-bezier(.2,.9,.2,1)}
+    .feature.revealed{opacity:1;transform:none}
+
+    .back-to-top{position:fixed;right:20px;bottom:20px;width:48px;height:48px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#021019;cursor:pointer;box-shadow:0 10px 30px rgba(7,21,28,0.35);opacity:0;pointer-events:none;transition:all 240ms ease;z-index:9999}
+    .back-to-top.show{opacity:1;pointer-events:auto;transform:translateY(0)}
+
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.7);display:grid;place-items:center;z-index:99999;opacity:0;pointer-events:none;transition:opacity 240ms ease}
+    .modal-backdrop.show{opacity:1;pointer-events:auto}
+    .modal{width:min(520px,94vw);background:var(--surface);border-radius:12px;padding:18px;box-shadow:0 20px 60px rgba(2,6,23,0.6)}
+
+    footer{padding:36px 0;color:var(--muted);text-align:center}
+
+    @media (max-width:980px){.hero-grid{grid-template-columns:1fr;} .features{grid-template-columns:repeat(2,1fr)} }
+    @media (max-width:700px){ .nav-menu{display:none} .hamburger{display:flex} .mobile-menu{display:flex} .navbar{padding:10px 14px} .hero{padding-top:96px} }
+
+
+    input,textarea,button{font:inherit}
+    .sr-only{position:absolute;left:-9999px}
+  </style></head>
+<body>  <div class="preloader" id="preloader" aria-hidden="true">
+    <div class="spinner">RL</div>
+  </div>  <header class="navbar" id="navbar" role="banner">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">RL</div>
+      <div class="brand-name">Responsive Landing</div>
+    </div><nav class="nav-menu" id="navMenu" aria-label="Primary">
+  <a class="nav-link" href="#home">Home</a>
+  <a class="nav-link" href="#features">Features</a>
+  <a class="nav-link" href="#pricing">Pricing</a>
+  <a class="nav-link" href="#about">About</a>
+  <a class="nav-link" href="#contact">Contact</a>
+  <a class="cta" href="#contact">Get Started</a>
+</nav>
+
+<div class="controls">
+  <button class="theme-toggle" id="themeToggle" aria-pressed="false" title="Toggle theme">🌙 <span class="sr-only">Toggle theme</span></button>
+  <button class="hamburger" id="hamburger" aria-expanded="false" aria-controls="mobileMenu" aria-label="Toggle Menu">
+    <span class="bar"></span>
+    <span class="bar"></span>
+    <span class="bar"></span>
+  </button>
+</div>
+
+  </header>  <div class="mobile-menu" id="mobileMenu" hidden>
+    <a class="nav-link" href="#home">Home</a>
+    <a class="nav-link" href="#features">Features</a>
+    <a class="nav-link" href="#pricing">Pricing</a>
+    <a class="nav-link" href="#about">About</a>
+    <a class="nav-link" href="#contact">Contact</a>
+    <a class="cta" href="#contact">Get Started</a>
+  </div> <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h3 id="modalTitle">Join our newsletter</h3>
+      <p class="sub">Get updates and exclusive offers. No spam — unsubscribe anytime.</p>
+      <form id="newsletterForm" style="display:flex;gap:8px;margin-top:12px">
+        <input id="newsletterEmail" type="email" placeholder="Your email" required style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(0,0,0,0.06)">
+        <button class="cta" type="submit">Subscribe</button>
+      </form>
+      <div style="margin-top:12px;text-align:right"><button id="modalClose" class="nav-link">Close</button></div>
+    </div>
+  </div>  <main>
+    <section id="home" class="hero">
+      <div class="container">
+        <div class="hero-grid">
+          <div>
+            <h1 class="headline">A powerful, responsive landing page — <span class="typed" id="typed"></span></h1>
+            <p class="sub">Modern nav with shrink-on-scroll, hover interactions, scroll reveals, theme toggle, and more — built using plain HTML, CSS and JavaScript.</p>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px">
+              <a class="cta" href="#features">Explore Features</a>
+              <a class="nav-link" href="#pricing">See Pricing</a>
+              <button id="openModal" class="nav-link">Newsletter</button>
+            </div><div class="features" style="margin-top:28px">
+          <div class="feature card" data-reveal>
+            <strong>Fixed & Smart Nav</strong>
+            <p class="sub">Always visible and gets smarter as you scroll.</p>
+          </div>
+          <div class="feature card" data-reveal>
+            <strong>Theme Toggle</strong>
+            <p class="sub">Light / Dark mode saved in localStorage.</p>
+          </div>
+          <div class="feature card" data-reveal>
+            <strong>Scroll Reveal</strong>
+            <p class="sub">Smooth reveal animations as you move through the page.</p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="card" style="min-height:160px;display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <h3 style="margin-bottom:8px">Quick demo card</h3>
+          <p class="sub">A responsive panel — replace with image, signup form or media content.</p>
+        </div>
+        <div style="display:flex;gap:8px">
+          <a class="nav-link" href="#contact">Contact</a>
+          <a class="cta" href="#contact">Start</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section id="features" class="container">
+  <h2 style="margin-bottom:12px">Features</h2>
+  <p class="sub">A complete list of built-in interactions and UX details.</p>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px">
+    <div class="card feature" data-reveal>Animated scroll effects & reveals.</div>
+    <div class="card feature" data-reveal>Keyboard accessible navigation & focus states.</div>
+    <div class="card feature" data-reveal>Contact form validation & UI feedback.</div>
+  </div>
+</section>
+
+<section id="pricing" class="container">
+  <h2 style="margin-bottom:12px">Pricing</h2>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:18px">
+    <div class="card" style="flex:1;min-width:220px">Free — basic demo</div>
+    <div class="card" style="flex:1;min-width:220px">Pro — commercial use</div>
+    <div class="card" style="flex:1;min-width:220px">Enterprise — custom</div>
+  </div>
+</section>
+
+<section id="about" class="container">
+  <h2>About</h2>
+  <p class="sub">This template is made to be a robust starting point for multi-page sites, frameworks, and static site generators.</p>
+</section>
+
+<section id="contact" class="container">
+  <h2>Contact</h2>
+  <p class="sub">A minimal contact form (frontend only). Hook it to your backend or service when ready.</p>
+  <form id="contactForm" class="card" style="margin-top:12px;display:flex;flex-direction:column;gap:8px;max-width:520px">
+    <input id="nameInput" type="text" name="name" placeholder="Your name" required style="padding:10px;border-radius:8px;border:1px solid rgba(0,0,0,0.06);background:transparent;color:inherit">
+    <input id="emailInput" type="email" name="email" placeholder="Email" required style="padding:10px;border-radius:8px;border:1px solid rgba(0,0,0,0.06);background:transparent;color:inherit">
+    <textarea id="messageInput" name="message" rows="4" placeholder="Message" required style="padding:10px;border-radius:8px;border:1px solid rgba(0,0,0,0.06);background:transparent;color:inherit"></textarea>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button type="submit" class="cta">Send</button>
+      <button type="reset" class="nav-link">Reset</button>
+      <div id="formMsg" style="margin-left:auto;color:var(--muted)"></div>
+    </div>
+  </form>
+</section>
+
+  </main>  <footer>
+    <div class="container">
+      <small>© <span id="year"></span> Responsive Landing • Built with accessibility & performance in mind.</small>
+    </div>
+  </footer>  <button class="back-to-top" id="backToTop" aria-label="Back to top">↑</button>
+
+  <script>
+
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    const preloader = document.getElementById('preloader');
+    window.addEventListener('load', ()=>{
+      setTimeout(()=>{ preloader.classList.add('hidden'); }, 700);
+    });
+
+    const navbar = document.getElementById('navbar');
+    function onScroll(){
+      const y = window.scrollY;
+      if(y > 60) navbar.classList.add('scrolled'); else navbar.classList.remove('scrolled');
+      if(y > 120) navbar.classList.add('small'); else navbar.classList.remove('small');
+
+      const btt = document.getElementById('backToTop');
+      if(y > 380) btt.classList.add('show'); else btt.classList.remove('show');
+    }
+    document.addEventListener('scroll', onScroll, {passive:true});
+
+    const hamburger = document.getElementById('hamburger');
+    const mobileMenu = document.getElementById('mobileMenu');
+    hamburger.addEventListener('click', ()=>{
+      const expanded = hamburger.getAttribute('aria-expanded') === 'true';
+      hamburger.setAttribute('aria-expanded', String(!expanded));
+      if(mobileMenu.hasAttribute('hidden')) mobileMenu.removeAttribute('hidden');
+      else mobileMenu.setAttribute('hidden','');
+    });
+
+    document.querySelectorAll('a[href^="#"]').forEach(a=>{
+      a.addEventListener('click', e=>{
+        const href = a.getAttribute('href');
+        if(href.length>1){
+          e.preventDefault();
+          const target = document.querySelector(href);
+          if(target){ target.scrollIntoView({behavior:'smooth',block:'start'});
+            if(!mobileMenu.hasAttribute('hidden')) mobileMenu.setAttribute('hidden',''); hamburger.setAttribute('aria-expanded','false');
+          }
+        }
+      });
+    });
+
+    const navLinks = Array.from(document.querySelectorAll('.nav-link'));
+    const sections = ['home','features','pricing','about','contact'].map(id=>document.getElementById(id));
+    const io = new IntersectionObserver(entries=>{
+      entries.forEach(entry=>{
+        const id = entry.target.id;
+        const link = navLinks.find(a=>a.getAttribute('href') === '#'+id);
+        if(entry.isIntersecting){
+          navLinks.forEach(l=>l.classList.remove('current'));
+          if(link) link.classList.add('current');
+        }
+      });
+    },{threshold:0.45});
+    sections.forEach(s=>s && io.observe(s));
+
+    const revealElements = document.querySelectorAll('[data-reveal]');
+    const revealObs = new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('revealed'); revealObs.unobserve(e.target); } });
+    },{threshold:0.18});
+    revealElements.forEach(el=>revealObs.observe(el));
+
+    const typed = document.getElementById('typed');
+    const words = ['interactive nav','smooth animations','responsive design','fast performance'];
+    let wi=0, ci=0, forward=true;
+    function tick(){
+      const w = words[wi];
+      if(forward){ ci++; if(ci > w.length){ forward=false; setTimeout(tick,700); return; } }
+      else{ ci--; if(ci === 0){ forward=true; wi = (wi+1)%words.length; setTimeout(tick,200); return; } }
+      typed.textContent = w.slice(0,ci);
+      setTimeout(tick, forward ? 80 : 40);
+    }
+    tick();
+
+    document.getElementById('backToTop').addEventListener('click', ()=>window.scrollTo({top:0,behavior:'smooth'}));
+
+    const modal = document.getElementById('modalBackdrop');
+    const openModal = document.getElementById('openModal');
+    const modalClose = document.getElementById('modalClose');
+    openModal.addEventListener('click', ()=>{ modal.classList.add('show'); modal.removeAttribute('aria-hidden'); document.getElementById('newsletterEmail').focus(); });
+    modalClose.addEventListener('click', ()=>{ modal.classList.remove('show'); modal.setAttribute('aria-hidden','true'); });
+    modal.addEventListener('click', (e)=>{ if(e.target === modal) { modal.classList.remove('show'); modal.setAttribute('aria-hidden','true'); } });
+
+    document.getElementById('newsletterForm').addEventListener('submit', e=>{
+      e.preventDefault(); const email = document.getElementById('newsletterEmail').value;
+      if(!email || !email.includes('@')){ alert('Please enter a valid email'); return; }
+      document.getElementById('newsletterForm').innerHTML = '<div style="padding:12px">Thanks! Check your inbox for confirmation.</div>';
+      setTimeout(()=>{ modal.classList.remove('show'); modal.setAttribute('aria-hidden','true'); }, 1200);
+    });
+
+    const contactForm = document.getElementById('contactForm');
+    const formMsg = document.getElementById('formMsg');
+    contactForm.addEventListener('submit', e=>{
+      e.preventDefault();
+      const name = document.getElementById('nameInput').value.trim();
+      const email = document.getElementById('emailInput').value.trim();
+      const msg = document.getElementById('messageInput').value.trim();
+      if(!name || !email || !msg){ formMsg.textContent = 'Please fill all fields.'; formMsg.style.color = 'tomato'; return; }
+      if(!email.includes('@')){ formMsg.textContent = 'Invalid email address.'; formMsg.style.color = 'tomato'; return; }
+
+      formMsg.style.color = 'var(--accent)'; formMsg.textContent = 'Sending...';
+      setTimeout(()=>{ formMsg.textContent = 'Message sent! (demo)'; contactForm.reset(); }, 900);
+    });
+
+    const themeToggle = document.getElementById('themeToggle');
+    const root = document.documentElement;
+    function applyTheme(t){ document.documentElement.setAttribute('data-theme', t); themeToggle.setAttribute('aria-pressed', String(t==='dark')); themeToggle.textContent = t==='dark' ? '🌙' : '🌤️'; }
+    const saved = localStorage.getItem('site-theme') || 'dark'; applyTheme(saved);
+    themeToggle.addEventListener('click', ()=>{ const cur = document.documentElement.getAttribute('data-theme'); const next = cur === 'dark' ? 'light' : 'dark'; applyTheme(next); localStorage.setItem('site-theme', next); });
+
+    if(!sessionStorage.getItem('newsletterShown')){
+      setTimeout(()=>{ modal.classList.add('show'); modal.removeAttribute('aria-hidden'); sessionStorage.setItem('newsletterShown','1'); }, 4200);
+    }
+
+    document.addEventListener('keydown', (e)=>{ if(e.key === 'Tab') document.body.classList.add('user-is-tabbing'); });
+
+    document.addEventListener('click', (e)=>{ if(!mobileMenu.hasAttribute('hidden') && !mobileMenu.contains(e.target) && !hamburger.contains(e.target)){ mobileMenu.setAttribute('hidden',''); hamburger.setAttribute('aria-expanded','false'); } });
+
+  </script></body>
+</html>
